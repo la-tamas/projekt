@@ -206,11 +206,30 @@ const createTable = (response) => {
         const tr = document.createElement('tr');
         tr.classList.add('table-row-hover');
 
+        // @TODO: Clicking only first name to display data is bad UX
+        // If still needed move listener to the full name cell
         tr.addEventListener('click', async () => {
             const { statusCode, json: response } = await createGET(`${urls.users}/${user.id}`);
 
             if (statusCode === 200) {
-                console.log(response);
+                const cardImage = document.getElementById('card-image');
+                cardImage.src = response.data.avatar;
+
+                const cardName = document.getElementById('card-user-name');
+                cardName.innerHTML = response.data.first_name + ' ' + response.data.last_name;
+
+                const cardEmail = document.getElementById('card-user-email');
+                cardEmail.innerHTML = response.data.email;
+
+                const cardId = document.getElementById('card-user-id');
+                cardId.innerHTML = response.data.id;
+
+                const card = document.getElementById('user-card');
+                card.classList.remove('hidden');
+            }
+
+            if (statusCode === 404) {
+                alert('User not found!');
             }
         });
 
