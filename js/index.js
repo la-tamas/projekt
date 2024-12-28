@@ -80,6 +80,12 @@ const cleanupTable = () => {
     tableBody.remove();
 }
 
+const createAddUser = () => {
+    const tr = document.createElement('tr');
+
+    // @TODO: Create add user form
+}
+
 const createTable = (response) => {
     cleanupTable();
 
