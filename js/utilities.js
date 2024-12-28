@@ -43,8 +43,6 @@ const sendRequest = (method, url, data) => {
             reject(event);
         }
 
-        console.log(data);
-
         request.send(data ? JSON.stringify(data) : null);
     });
 }

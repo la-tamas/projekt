@@ -82,8 +82,116 @@ const cleanupTable = () => {
 
 const createAddUser = () => {
     const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 4;
+    const form = document.createElement('form');
+    form.id = 'add-user-form';
 
-    // @TODO: Create add user form
+    const handler = () => {
+        const form = document.getElementById('add-user-form');
+
+        const labels = form.getElementsByTagName('label');
+
+        for (let i = 0; i < labels.length; i++) {
+            document.getElementById(labels.item(i).id).remove();
+        }
+    }
+
+    const nameInputGroup = document.createElement('div');
+    nameInputGroup.classList.add('input-group');
+    nameInputGroup.classList.add('has-validation');
+    nameInputGroup.classList.add('mb-3');
+    const nameInput = document.createElement('input');
+    nameInput.name = 'name';
+    nameInput.id = 'name';
+    nameInput.classList.add('form-control');
+    nameInput.placeholder = 'Name';
+    nameInput.pattern = '^[a-zA-Z]{1}[a-zA-Z0-9]{4,}$';
+    nameInput.required = true;
+    nameInput.min = 5;
+    nameInput.addEventListener('change', handler);
+    nameInput.addEventListener('focus', handler);
+    nameInputGroup.appendChild(nameInput);
+
+    const roleInputGroup = document.createElement('div');
+    roleInputGroup.classList.add('input-group');
+    roleInputGroup.classList.add('has-validation');
+    const roleInput = document.createElement('input');
+    roleInput.name = 'role';
+    roleInput.id = 'role';
+    roleInput.classList.add('form-control');
+    roleInput.placeholder = 'Role';
+    roleInput.pattern = '^[a-z]{1}[a-z\ ]{4,}$';
+    roleInput.required = true;
+    roleInput.min = 5;
+    roleInput.addEventListener('change', handler);
+    roleInput.addEventListener('focus', handler);
+    roleInputGroup.appendChild(roleInput);
+
+    form.appendChild(nameInputGroup);
+    form.appendChild(roleInputGroup);
+
+    const actionCell = document.createElement('td');
+    const saveButton = document.createElement('button');
+    saveButton.classList.add('btn');
+    saveButton.classList.add('btn-primary');
+    const saveIcon = document.createElement('i');
+    saveIcon.className = 'bi bi-save';
+
+    saveButton.addEventListener('click', async () => {
+        const form = document.getElementById('add-user-form');
+
+        const inputs = form.getElementsByTagName('input');
+
+        const errors = [];
+        for (let i = 0; i < inputs.length; i++) {
+            if (!inputs.item(i).checkValidity()) {
+                errors.push({
+                    field: inputs.item(i).id,
+                    // @TODO: Different error messages for different error types?
+                    error: 'Invalid input value'
+                })
+            }
+
+        }
+
+        if (errors.length === 0) {
+            const json = {};
+            new FormData(form).forEach((value, key) => {
+                json[key] = value.valueOf();
+            });
+
+            try {
+                const { statusCode, json: response } = await createPOST(`${urls.users}`, json);
+
+                if (statusCode === 201) {
+                    form.reset();
+                    alert(`Created user with id ${response.id} at ${response.createdAt}`);
+                }
+            } catch (error) {
+                console.log(error);
+            }
+        } else {
+            errors.forEach(({ error, field }) => {
+                const input = document.getElementById(field);
+                const feedback = document.createElement('label');
+                feedback.classList.add('invalid-feedback');
+                feedback.classList.add('show');
+                feedback.id = `${field}-error`;
+                feedback.innerHTML = error;
+                input.parentElement.appendChild(feedback);
+            });
+        }
+    });
+
+    saveButton.appendChild(saveIcon);
+    actionCell.appendChild(saveButton);
+
+    td.appendChild(form);
+    tr.appendChild(td);
+    tr.appendChild(actionCell);
+
+    return tr;
 }
 
 const createTable = (response) => {
@@ -97,6 +205,14 @@ const createTable = (response) => {
     const rows = response.data.map((user) => {
         const tr = document.createElement('tr');
         tr.classList.add('table-row-hover');
+
+        tr.addEventListener('click', async () => {
+            const { statusCode, json: response } = await createGET(`${urls.users}/${user.id}`);
+
+            if (statusCode === 200) {
+                console.log(response);
+            }
+        });
 
         const idElement = document.createElement('td');
         idElement.innerHTML = user.id;
@@ -119,7 +235,8 @@ const createTable = (response) => {
         editIcon.className = 'bi bi-pencil';
         editButton.classList.add('btn');
         editButton.classList.add('btn-info');
-        editButton.addEventListener('click', () => {
+        editButton.addEventListener('click', (event) => {
+            event.stopPropagation();
             globalState.editModalOpen = true;
             globalState.userId = user.id;
         });
@@ -131,7 +248,8 @@ const createTable = (response) => {
         deleteIcon.className = 'bi bi-trash';
         deleteButton.classList.add('btn');
         deleteButton.classList.add('btn-danger');
-        deleteButton.addEventListener('click', () => {
+        deleteButton.addEventListener('click', (event) => {
+            event.stopPropagation();
             globalState.deleteModalOpen = true;
             globalState.userId = user.id;
         });
@@ -148,6 +266,7 @@ const createTable = (response) => {
     });
 
     rows.forEach(row => tableBody.appendChild(row));
+    tableBody.appendChild(createAddUser());
 
     table.appendChild(tableBody);
 }
