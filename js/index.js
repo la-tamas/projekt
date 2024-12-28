@@ -431,6 +431,7 @@ const createEditModal = () => {
             globalState.editModalOpen = false;
             globalState.userId = null;
             form.reset();
+            alert('User updated!');
         }
     });
 }
