@@ -1,5 +1,5 @@
 const urls = {
-    getUsers: 'https://reqres.in/api/users',
+    users: 'https://reqres.in/api/users',
 }
 
 const createRequest = (method, url) => {
@@ -10,15 +10,26 @@ const createRequest = (method, url) => {
     return xhr;
 }
 
-const sendRequest = (method, url) => {
+const sendRequest = (method, url, data) => {
     return new Promise((resolve, reject) => {
         const request = createRequest(method, url);
 
+        if (data) {
+            request.setRequestHeader('Content-Type', 'application/json');
+        }
+
         request.onloadend = () => {
             try {
-                const json = JSON.parse(request.response);
+                let json = {};
 
-                resolve(json);
+                if (request.response) {
+                    json = JSON.parse(request.response);
+                }
+
+                resolve({
+                    statusCode: request.status,
+                    json,
+                });
             } catch (error) {
                 reject(error);
             }
@@ -32,7 +43,9 @@ const sendRequest = (method, url) => {
             reject(event);
         }
 
-        request.send();
+        console.log(data);
+
+        request.send(data ? JSON.stringify(data) : null);
     });
 }
 
@@ -44,10 +57,10 @@ const createDELETE = (url) => {
     return sendRequest('DELETE', url);
 }
 
-const createPOST = (url) => {
-    return sendRequest('POST', url);
+const createPOST = (url, data) => {
+    return sendRequest('POST', url, data);
 }
 
-const createPUT = (url) => {
-    return sendRequest('PUT', url);
+const createPUT = (url, data) => {
+    return sendRequest('PUT', url, data);
 }

@@ -1,10 +1,44 @@
-const globalState = {
-    page: null,
+const globalState = new Proxy({
+    page: 1,
+    pageSize: 6,
     totalPages: null,
-    pageSize: null,
     total: null,
     editModalOpen: false,
-}
+    deleteModalOpen: false,
+    userId: null,
+}, {
+    set(target, propName, newValue) {
+        const result = Reflect.set(target, propName, newValue);
+
+        if (propName === 'deleteModalOpen') {
+            const modal = document.getElementById('delete-modal');
+            if (newValue === true) {
+                modal.classList.add('show');
+            } else {
+                modal.classList.remove('show');
+            }
+        }
+
+        if (propName === 'editModalOpen') {
+            const modal = document.getElementById('edit-modal');
+            if (newValue === true) {
+                modal.classList.add('show');
+            } else {
+                modal.classList.remove('show');
+            }
+        }
+
+        if (propName === 'page' || propName === 'pageSize') {
+            renderTable();
+        }
+
+        if (propName === 'userId' && newValue === null) {
+            renderTable();
+        }
+
+        return result;
+    }
+});
 
 const loadUsers = async () => {
     const loader = document.getElementById('loader');
@@ -20,14 +54,12 @@ const loadUsers = async () => {
         searchParams.append('per_page', globalState.pageSize);
     }
 
-    const url = `${urls.getUsers}?${searchParams.toString()}`
+    const url = `${urls.users}?${searchParams.toString()}`
 
-    const response = await createGET(url);
+    const { json: response } = await createGET(url);
 
     loader.classList.add('hidden');
 
-    globalState.page = response.page;
-    globalState.pageSize = response.per_page;
     globalState.total = response.total;
     globalState.totalPages = response.total_pages;
 
@@ -43,13 +75,17 @@ const renderTable = async () => {
     return response;
 }
 
-const createTable = (response) => {
-    let tableBody = document.getElementById('users-table-body');
+const cleanupTable = () => {
+    const tableBody = document.getElementById('users-table-body');
     tableBody.remove();
+}
+
+const createTable = (response) => {
+    cleanupTable();
 
     const table = document.getElementById('users-table');
 
-    tableBody = document.createElement('tbody');
+    const tableBody = document.createElement('tbody');
     tableBody.id = 'users-table-body';
 
     const rows = response.data.map((user) => {
@@ -76,6 +112,10 @@ const createTable = (response) => {
         editIcon.className = 'bi bi-pencil';
         editButton.classList.add('btn');
         editButton.classList.add('btn-info');
+        editButton.addEventListener('click', () => {
+            globalState.editModalOpen = true;
+            globalState.userId = user.id;
+        });
         editButton.appendChild(editIcon);
         actionElement.appendChild(editButton);
 
@@ -84,6 +124,10 @@ const createTable = (response) => {
         deleteIcon.className = 'bi bi-trash';
         deleteButton.classList.add('btn');
         deleteButton.classList.add('btn-danger');
+        deleteButton.addEventListener('click', () => {
+            globalState.deleteModalOpen = true;
+            globalState.userId = user.id;
+        });
         deleteButton.appendChild(deleteIcon);
         actionElement.appendChild(deleteButton);
 
@@ -101,26 +145,30 @@ const createTable = (response) => {
     table.appendChild(tableBody);
 }
 
+const cleanupPagination = () => {
+    const pagination = document.getElementById('users-table-pagination');
+    pagination.remove();
+}
+
 const createTableActions = (response) => {
     const pageCount = response.total_pages;
     const page = response.page;
 
+    cleanupPagination();
+
     const nav = document.getElementById('pagination-nav');
-    let pagination = document.getElementById('users-table-pagination');
-
-    for (let i = 0; i < pagination.children.length; i++) {
-        pagination.children.item(i).remove();
-    }
-
-    pagination.remove();
-
-    pagination = document.createElement('ul');
+    const pagination = document.createElement('ul');
+    pagination.id = 'users-table-pagination';
     pagination.classList.add('pagination');
 
     const prev = document.createElement('li');
     prev.id = 'prev-button'
     prev.classList.add('page-item');
-    prev.classList.add('disabled');
+
+    if (page === 1) {
+        prev.classList.add('disabled');
+    }
+
     const prevLink = document.createElement('a');
     prevLink.classList.add('page-link');
     prevLink.href = '#';
@@ -131,13 +179,6 @@ const createTableActions = (response) => {
         event.preventDefault();
 
         globalState.page = globalState.page - 1;
-
-        const response = await renderTable();
-
-        if (1 === response.total_pages) {
-            const prev = document.getElementById('prev-button');
-            prev.classList.add('disabled')
-        }
     });
 
     prev.appendChild(prevLink);
@@ -159,27 +200,6 @@ const createTableActions = (response) => {
             event.preventDefault();
 
             globalState.page = i;
-
-            const response = await renderTable();
-
-            for (let i = 0; i < pagination.children.length; i++) {
-                const child = pagination.children.item(i);
-
-                child.classList.remove('active');
-                child.classList.remove('disabled');
-            }
-
-            if (1 === response.page) {
-                const prev = document.getElementById('prev-button');
-                prev.classList.add('disabled')
-            }
-
-            if (globalState.page === response.total_pages) {
-                const next = document.getElementById('next-button');
-                next.classList.add('disabled')
-            }
-
-            link.parentElement.classList.add('active');
         });
 
         if (page === i) {
@@ -195,6 +215,9 @@ const createTableActions = (response) => {
     next.classList.add('page-item');
     const nextLink = document.createElement('a');
     nextLink.classList.add('page-link');
+    if (page === pageCount) {
+        next.classList.add('disabled');
+    }
     nextLink.href = '#';
     nextLink.innerHTML = '&raquo;';
     nextLink.setAttribute('aria-hidden', true);
@@ -203,18 +226,67 @@ const createTableActions = (response) => {
         event.preventDefault();
 
         globalState.page = globalState.page + 1;
-
-        const response = await renderTable();
-
-        if (globalState.page === response.total_pages) {
-            const next = document.getElementById('next-button');
-            next.classList.add('disabled')
-        }
     });
 
     next.appendChild(nextLink);
     pagination.appendChild(next);
     nav.appendChild(pagination);
+}
+
+const createDeleteModal = () => {
+    const closeIconButton = document.getElementById('close-delete-modal');
+    closeIconButton.addEventListener('click', () => {
+        globalState.deleteModalOpen = false;
+        globalState.userId = null;
+    });
+
+    const cancelButton = document.getElementById('cancel-delete');
+    cancelButton.addEventListener('click', () => {
+        globalState.deleteModalOpen = false;
+        globalState.userId = null;
+    });
+
+    const deleteButton = document.getElementById('user-delete');
+    deleteButton.addEventListener('click', async () => {
+        const response = await createDELETE(`${urls.users}/${globalState.userId}`);
+
+        if (response.statusCode === 204) {
+            globalState.deleteModalOpen = false;
+            globalState.userId = null;
+        }
+    });
+}
+
+const createEditModal = () => {
+    const closeIconButton = document.getElementById('close-edit-modal');
+    closeIconButton.addEventListener('click', () => {
+        globalState.editModalOpen = false;
+        globalState.userId = null;
+    });
+
+    const cancelButton = document.getElementById('cancel-edit');
+    cancelButton.addEventListener('click', () => {
+        globalState.editModalOpen = false;
+        globalState.userId = null;
+    });
+
+    const editButton = document.getElementById('user-edit');
+    editButton.addEventListener('click', async () => {
+        const form = document.getElementById('edit-user-form');
+
+        const json = {};
+        new FormData(form).forEach((value, key) => {
+            json[key] = value.valueOf();
+        });
+
+        const response = await createPUT(`${urls.users}/${globalState.userId}`, json);
+
+        if (response.statusCode === 200) {
+            globalState.editModalOpen = false;
+            globalState.userId = null;
+            form.reset();
+        }
+    });
 }
 
 const createPageSizeSelect = async () => {
@@ -233,4 +305,6 @@ const createPageSizeSelect = async () => {
     await renderTable();
 
     createPageSizeSelect();
+    createDeleteModal();
+    createEditModal();
 })()

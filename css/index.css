@@ -8,8 +8,12 @@
     left: 0;
     bottom: 0;
     right: 0;
-    background-color: grey;
+    background-color: #474545;
     min-height: 100%;
+}
+
+.show {
+    display: block !important;
 }
 
 .loader {
