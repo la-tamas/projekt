@@ -90,6 +90,7 @@ const createTable = (response) => {
 
     const rows = response.data.map((user) => {
         const tr = document.createElement('tr');
+        tr.classList.add('table-row-hover');
 
         const idElement = document.createElement('td');
         idElement.innerHTML = user.id;
@@ -253,6 +254,7 @@ const createDeleteModal = () => {
         if (response.statusCode === 204) {
             globalState.deleteModalOpen = false;
             globalState.userId = null;
+            alert('User deleted!');
         }
     });
 }
@@ -296,8 +298,6 @@ const createPageSizeSelect = async () => {
 
     select.addEventListener('change', async (event) => {
         globalState.pageSize = Number(event.target.value);
-
-        await renderTable();
     });
 }
 
